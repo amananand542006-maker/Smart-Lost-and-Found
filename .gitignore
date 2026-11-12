@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Secrets
+.env
+.env.*
+
+# Local database
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+
+# Uploaded photos
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Generated QR codes
+qr_codes/*
+!qr_codes/.gitkeep
+
+# Backups
+*_backup.py
+*_backup.html

@@ -1,0 +1,61 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Item Details - Smart Lost & Found</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+<header>
+    <h1>Smart Lost & Found</h1>
+    <p>Item Identification Portal</p>
+</header>
+
+<main class="details">
+
+    <h2>{{ item.name }}</h2>
+
+    <p><b>Item ID:</b> {{ item.id }}</p>
+
+    <p><b>Description:</b> {{ item.description }}</p>
+
+    <p><b>Found Location:</b> {{ item.location }}</p>
+
+    <p><b>Date Found:</b> {{ item.date_found }}</p>
+
+    <p><b>Status:</b> {{ item.status }}</p>
+
+    {% if item.status == "Available" %}
+
+        <a class="button"
+           href="{{ form_url }}"
+           target="_blank">
+            Claim Now
+        </a>
+
+    {% else %}
+
+        <p>This item is no longer available.</p>
+
+    {% endif %}
+
+    <br><br>
+
+    <a href="/">Back to Homepage</a>
+
+</main>
+
+<footer>
+    <p>Smart Lost & Found | Capstone Project</p>
+</footer>
+
+</body>
+</html>

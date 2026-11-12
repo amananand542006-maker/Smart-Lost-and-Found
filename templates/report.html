@@ -1,0 +1,328 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Report an Item - Smart Lost &amp; Found</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+<header>
+    <h1>Smart Lost &amp; Found</h1>
+    <p>Help us identify an item</p>
+</header>
+
+<main class="report-page">
+    <a class="back-link" href="{{ url_for('home') }}">&larr; Back to items</a>
+
+    {% if submitted %}
+    <section class="notice success" role="status">
+        <h2>Item Registered Successfully!</h2>
+        <p>Your item has been added to the Lost &amp; Found system.</p>
+
+        <p><strong>Generated Item ID:</strong> {{ item_id }}</p>
+
+        <p>
+            <a class="button"
+               href="{{ url_for('item_details', item_id=item_id) }}">
+                View Item Details
+            </a>
+        </p>
+
+        <p>
+            <a href="{{ url_for('qr_code', item_id=item_id) }}" target="_blank">
+                View Generated QR Code
+            </a>
+        </p>
+
+        <a class="button" href="{{ url_for('home') }}">
+            Return to Homepage
+        </a>
+    </section>
+
+    {% else %}
+    <section class="report-form-card">
+        <h2>Report an Item</h2>
+        <p class="form-intro">
+            Enter the item details and choose how to add a photo.
+        </p>
+
+        {% if errors %}
+        <div class="notice error" role="alert">
+            <p>Please check the following:</p>
+            <ul>
+                {% for error in errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data">
+
+            <!-- ITEM NAME -->
+            <label for="name">Item Name</label>
+            <input
+                type="text"
+                id="name"
+                name="name"
+                maxlength="100"
+                required
+                value="{{ name|default('') }}"
+                placeholder="Example: Black Laptop"
+            >
+
+            <!-- FOUND LOCATION -->
+            <label for="location">Found Location</label>
+            <input
+                type="text"
+                id="location"
+                name="location"
+                maxlength="150"
+                required
+                value="{{ location|default('') }}"
+                placeholder="Example: College Library"
+            >
+
+            <!-- PHOTO METHOD -->
+            <fieldset class="photo-method">
+                <legend>How would you like to add a photo?</legend>
+
+                <label class="choice-card">
+                    <input type="radio" name="image_source" value="camera"
+                           {% if image_source == "camera" %}checked{% endif %}>
+                    <span class="choice-copy">
+                        <strong>Use camera</strong>
+                        <span>Take a new photo now</span>
+                    </span>
+                </label>
+
+                <label class="choice-card">
+                    <input type="radio" name="image_source" value="upload"
+                           {% if image_source != "camera" %}checked{% endif %}>
+                    <span class="choice-copy">
+                        <strong>Upload a photo</strong>
+                        <span>Choose an image from your device</span>
+                    </span>
+                </label>
+            </fieldset>
+
+            <!-- CAMERA PANEL -->
+            <section id="cameraPanel" class="photo-panel" hidden>
+                <video id="cameraPreview" autoplay playsinline muted></video>
+
+                <div class="camera-controls">
+                    <button class="button secondary-button" id="startCamera"
+                            type="button">Start camera</button>
+
+                    <button class="button" id="capturePhoto" type="button" disabled>
+                        Capture photo
+                    </button>
+                </div>
+
+                <p id="cameraMessage" class="help-text" aria-live="polite">
+                    Allow camera access when your browser asks.
+                </p>
+            </section>
+
+            <!-- UPLOAD PANEL -->
+            <section id="uploadPanel" class="photo-panel">
+                <label for="photo">Choose an image</label>
+
+                <input id="photo" name="photo" type="file"
+                       accept="image/jpeg,image/png,image/webp">
+
+                <p class="help-text">
+                    JPG, PNG, or WebP; maximum size 10 MB.
+                </p>
+            </section>
+
+            <!-- IMAGE PREVIEW -->
+            <div id="imagePreviewWrap" class="image-preview-wrap" hidden>
+                <img id="imagePreview" alt="Preview of the selected item">
+                <p id="imageName" class="help-text"></p>
+            </div>
+
+            <!-- DESCRIPTION -->
+            <label class="description-label" for="description">
+                Describe the item
+            </label>
+
+            <textarea
+                id="description"
+                name="description"
+                rows="5"
+                maxlength="2000"
+                required
+                placeholder="Include details such as color, brand, size, or where it was found."
+            >{{ description }}</textarea>
+
+            <button class="button submit-button" type="submit">
+                Submit Report
+            </button>
+
+        </form>
+    </section>
+    {% endif %}
+</main>
+
+<footer>
+    <p>Smart Lost &amp; Found | Capstone Project</p>
+</footer>
+
+{% if not submitted %}
+<script>
+    const cameraPanel = document.getElementById("cameraPanel");
+    const uploadPanel = document.getElementById("uploadPanel");
+    const photoInput = document.getElementById("photo");
+    const video = document.getElementById("cameraPreview");
+    const startCameraButton = document.getElementById("startCamera");
+    const captureButton = document.getElementById("capturePhoto");
+    const cameraMessage = document.getElementById("cameraMessage");
+    const previewWrap = document.getElementById("imagePreviewWrap");
+    const imagePreview = document.getElementById("imagePreview");
+    const imageName = document.getElementById("imageName");
+
+    let cameraStream = null;
+    let previewUrl = null;
+
+    function clearPreview() {
+        previewWrap.hidden = true;
+        imagePreview.removeAttribute("src");
+        imageName.textContent = "";
+
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
+    }
+
+    function clearPhoto() {
+        photoInput.value = "";
+        clearPreview();
+    }
+
+    function stopCamera() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach((track) => track.stop());
+            cameraStream = null;
+        }
+
+        video.srcObject = null;
+        captureButton.disabled = true;
+    }
+
+    function setPhotoMethod(method, clear = true) {
+        cameraPanel.hidden = method !== "camera";
+        uploadPanel.hidden = method !== "upload";
+        photoInput.required = method === "upload";
+
+        if (clear) {
+            clearPhoto();
+            stopCamera();
+        }
+    }
+
+    document.querySelectorAll('input[name="image_source"]').forEach((input) => {
+        input.addEventListener("change", () => setPhotoMethod(input.value));
+    });
+
+    setPhotoMethod(
+        document.querySelector('input[name="image_source"]:checked').value,
+        false
+    );
+
+    photoInput.addEventListener("change", () => {
+        const file = photoInput.files[0];
+
+        clearPreview();
+
+        if (file) {
+            previewUrl = URL.createObjectURL(file);
+            imagePreview.src = previewUrl;
+            imageName.textContent = file.name;
+            previewWrap.hidden = false;
+        }
+    });
+
+    startCameraButton.addEventListener("click", async () => {
+        cameraMessage.textContent = "";
+
+        try {
+            stopCamera();
+
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: "environment" } },
+                audio: false
+            });
+
+            video.srcObject = cameraStream;
+            captureButton.disabled = false;
+
+        } catch (error) {
+            cameraMessage.textContent =
+                "Camera access was unavailable. Allow access or choose Upload a photo instead.";
+        }
+    });
+
+    captureButton.addEventListener("click", () => {
+        if (!cameraStream || !video.videoWidth || !video.videoHeight) {
+            cameraMessage.textContent =
+                "The camera is not ready yet. Please try again.";
+            return;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        canvas.getContext("2d").drawImage(video, 0, 0);
+
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                cameraMessage.textContent =
+                    "Could not capture the photo. Please try again.";
+                return;
+            }
+
+            const photo = new File(
+                [blob],
+                "item-photo.jpg",
+                { type: "image/jpeg" }
+            );
+
+            const transfer = new DataTransfer();
+            transfer.items.add(photo);
+            photoInput.files = transfer.files;
+
+            clearPreviewForCapture(photo);
+
+            cameraMessage.textContent =
+                "Photo captured. You can submit your report.";
+
+            stopCamera();
+
+        }, "image/jpeg", 0.9);
+    });
+
+    function clearPreviewForCapture(photo) {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+        }
+
+        previewUrl = URL.createObjectURL(photo);
+        imagePreview.src = previewUrl;
+        imageName.textContent = "Camera photo";
+        previewWrap.hidden = false;
+    }
+</script>
+{% endif %}
+
+</body>
+</html>
